@@ -1,0 +1,64 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 19
+    buildToolsVersion "29.0.0"
+    defaultConfig {
+        applicationId "com.example.ndkapplication"
+        minSdkVersion 19
+        targetSdkVersion 19
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk{
+            abiFilter 'armeabi-v7a'
+        }
+
+        sourceSets{
+            main {
+                jni.srcDirs = [] //禁用自带编译ndk功能
+                jniLibs.srcDir "/libs"
+
+            }
+        }
+
+//        externalNativeBuild{
+//            cmake {
+//                cppFlags ""
+//               // cppFlags "-std=c++11 -frtti -fexceptions"
+//               // abiFilters 'armeabi-v7a','arm64-v8a'
+//            }
+//        }
+
+    }
+
+    externalNativeBuild{
+        ndkBuild{
+            path = "src/main/jni/Android.mk"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+//    externalNativeBuild {
+//        cmake {
+//            path "src/main/jni/CMakeLists.txt"
+//            version "3.10.2"
+//        }
+//    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test:runner:1.2.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+}
+
