@@ -3,11 +3,11 @@
 #include <android/log.h>
 
 //编码
-#include "include/libavcodec/avcodec.h"
+#include "include/ffmpeg/libavcodec/avcodec.h"
 //封装格式处理
-#include "include/libavformat/avformat.h"
+#include "include/ffmpeg/libavformat/avformat.h"
 //像素处理
-#include "include/libswscale/swscale.h"
+#include "include/ffmpeg/libswscale/swscale.h"
 
 #define LOGI(FORMAT,...) __android_log_print(ANDROID_LOG_INFO,"jason",FORMAT,##__VA_ARGS__);
 #define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR,"jason",FORMAT,##__VA_ARGS__);

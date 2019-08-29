@@ -33,6 +33,9 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_MainActivity_path
 JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_decode
         (JNIEnv *, jclass,jstring input_jstr, jstring output_jstr);
 
+JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_render
+        (JNIEnv *, jclass,jstring input_jstr, jobject surface);
+
 
 #ifdef __cplusplus
 }

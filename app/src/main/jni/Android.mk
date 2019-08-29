@@ -43,13 +43,20 @@ LOCAL_MODULE := swscale
 LOCAL_SRC_FILES := libswscale-3.so
 include $(PREBUILT_SHARED_LIBRARY)
 
+include $(CLEAR_VARS)
+LOCAL_MODULE := yuv
+LOCAL_SRC_FILES := libyuv.so
+include $(PREBUILT_SHARED_LIBRARY)
+
 #myapp
 include $(CLEAR_VARS)
 LOCAL_MODULE := myffmpeg
-LOCAL_SRC_FILES := ffmpeg_player.c
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/include
-LOCAL_LDLIBS := -llog
-LOCAL_SHARED_LIBRARIES := avcodec avdevice avfilter avformat avutil postproc swresample swscale
+LOCAL_SRC_FILES := dn_video_player.c dn_audio_player.c dn_player.c
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/include/ffmpeg
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/include/libyuv
+##-landroid参数 for native windows
+LOCAL_LDLIBS := -llog -landroid
+LOCAL_SHARED_LIBRARIES := avcodec avdevice avfilter avformat avutil postproc swresample swscale yuv
 include $(BUILD_SHARED_LIBRARY)
 
 

@@ -5,6 +5,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -26,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     public static native void path(String filePath, int count);
 
+    private HandlerThread handlerThread;
+    private Handler handler;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,12 +39,21 @@ public class MainActivity extends AppCompatActivity {
         Log.i("MainActivity", "inputPath : " + inputPath);
         Log.i("MainActivity", "outpuPaht : " + outpuPaht);
 
-        new Thread(new Runnable(){
+        handlerThread = new HandlerThread("handlerThread");
+
+        handler = new Handler(handlerThread.getLooper());
+        handler.post(new Runnable() {
             @Override
             public void run() {
                 VideoUtils.decode(inputPath, outpuPaht);
             }
-        }).start();
+        });
 
+    }
+
+    @Override
+    protected void onDestroy() {
+        handlerThread.quit();
+        super.onDestroy();
     }
 }
