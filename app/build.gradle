@@ -11,16 +11,16 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        ndk{
+        ndk {
 //            abiFilter 'armeabi-v7a"
-            abiFilters 'armeabi-v7a','x86'
+            abiFilters 'armeabi-v7a', 'x86'
         }
 
-        sourceSets{
+        sourceSets {
             main {
-                jni.srcDirs = [] //禁用自带编译ndk功能
+//                jni.srcDirs = [] //禁用自带编译ndk功能
                 jniLibs.srcDir "/libs"
-
+                jni.srcDirs = ["src/main/jni/include/ffmpeg", "src/main/jni/include/libyuv", "src/main/jni/include/"]
             }
         }
 
@@ -34,8 +34,8 @@ android {
 
     }
 
-    externalNativeBuild{
-        ndkBuild{
+    externalNativeBuild {
+        ndkBuild {
             path = "src/main/jni/Android.mk"
         }
     }
