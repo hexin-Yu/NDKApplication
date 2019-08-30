@@ -11,8 +11,8 @@
 
 #define MAX_AUDIO_FRME_SIZE 4800 * 4
 
-JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_paly_sound
-        (JNIEnv *env, jclass jthiz, jstring input_jstr, jstring output_jstr) {
+JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
+        (JNIEnv *env, jclass jclazz, jstring input_jstr, jstring output_jstr) {
     const char *input_cstr = (*env)->GetStringUTFChars(env, input_jstr, NULL);
     const char *output_cstr = (*env)->GetStringUTFChars(env, output_jstr, NULL);
     // 1.注册
@@ -45,7 +45,7 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_paly_sound
         return;
     }
 
-    if (avcodec_open2(codecContext, codec, NULL) == NULL) {
+    if (avcodec_open2(codecContext, codec, NULL) < 0) {
         LOGI("%s", "无法打开编码器")
         return;
     }
@@ -77,13 +77,17 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_paly_sound
     int out_channel_nb = av_get_channel_layout_nb_channels(out_ch_layout);
 
     // 使用java的AudioTrack播放音频
-    jclass player_class = (*env)->GetObjectClass(env, jthiz);
+//    jclass player_class = (*env)->GetObjectClass(env, jclazz);
     // (II)Landroid/media/AudioTrack;
-    jmethodID create_audio_track = (*env)->GetMethodID(env, player_class, "createAudioTrack",
+    jmethodID create_audio_track = (*env)->GetMethodID(env, jclazz, "createAudioTrack",
                                                        "(II)Landroid/media/AudioTrack;");
 
-    jobject audio_track = (*env)->CallObjectMethod(env, jthiz, create_audio_track, out_sample_rate,
-                                                   out_channel_nb);
+    if (create_audio_track == NULL) {
+        LOGI("%s","create_audio_track is null");
+    }
+    jobject audio_track = (*env)->CallStaticObjectMethod(env, jclazz, create_audio_track,
+                                                         out_sample_rate,
+                                                         out_channel_nb);
 
     jclass audio_track_class = (*env)->GetObjectClass(env, audio_track);
     jmethodID play = (*env)->GetMethodID(env, audio_track_class, "play", "()V");

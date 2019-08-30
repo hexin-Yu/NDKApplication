@@ -38,7 +38,7 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_render
         (JNIEnv *, jclass,jstring input_jstr, jobject surface);
 
 
-JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_paly_sound
+JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
         (JNIEnv *, jclass,jstring input_jstr, jstring output_jstr);
 
 

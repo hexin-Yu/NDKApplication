@@ -37,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private HandlerThread handlerThread;
     private Handler handler;
     private Button render_video;
+    private Button play_sound;
     private VideoView video_view;
 
     String inputPath = "";
@@ -47,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         render_video = findViewById(R.id.render_video);
+        play_sound = findViewById(R.id.play_sound);
         video_view = findViewById(R.id.video_view);
         inputPath = new File(Environment.getExternalStorageDirectory(), "input.mp4").getAbsolutePath();
         outpuPaht = new File(Environment.getExternalStorageDirectory(), "output.mp4").getAbsolutePath();
@@ -64,6 +66,12 @@ public class MainActivity extends AppCompatActivity {
                 renderVideo(inputPath, holder.getSurface());
             }
         });
+        play_sound.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playSound();
+            }
+        });
 
 
     }
@@ -79,6 +87,10 @@ public class MainActivity extends AppCompatActivity {
                 VideoUtils.decode(inputPath, outpuPaht);
             }
         });
+    }
+
+    private void playSound() {
+        VideoUtils.palySound(inputPath, outpuPaht);
     }
 
 

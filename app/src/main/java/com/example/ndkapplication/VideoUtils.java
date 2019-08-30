@@ -10,9 +10,9 @@ public class VideoUtils {
 
     public native static void render(String input, Surface surface);
 
-    public native static void paly_sound(String input, String surface);
+    public native static void palySound(String input, String output);
 
-    public AudioTrack createAudioTrack(int sampleRateInHz, int nb_channels) {
+    public static AudioTrack createAudioTrack(int sampleRateInHz, int nb_channels) {
         int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
 
         int channelConfig;
