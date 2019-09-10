@@ -6,15 +6,17 @@
 
 
 #define LOGI(FORMAT, ...) __android_log_print(ANDROID_LOG_INFO,"super",FORMAT,__VA_ARGS__);
-#define LOGE(FORMAT, ...) __android_log_print(ANDROID_LOG_ERROR,"super",FORMAT,__VA_ARGS__);
+#define LOGE(FORMAT2, ...) __android_log_print(ANDROID_LOG_ERROR,"super",FORMAT2,__VA_ARGS__);
 
 
 #define MAX_AUDIO_FRME_SIZE 4800 * 4
 
-JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
+JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_playSound
         (JNIEnv *env, jclass jclazz, jstring input_jstr, jstring output_jstr) {
     const char *input_cstr = (*env)->GetStringUTFChars(env, input_jstr, NULL);
     const char *output_cstr = (*env)->GetStringUTFChars(env, output_jstr, NULL);
+    LOGI("%s",input_cstr);
+    LOGI("%s", "step 1");
     // 1.注册
     av_register_all();
     AVFormatContext *formatContext = avformat_alloc_context();
@@ -36,7 +38,7 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
             break;
         }
     }
-
+    LOGI("%s", "step 2");
     AVCodecContext *codecContext = formatContext->streams[audio_stream_idx]->codec;
     AVCodec *codec = avcodec_find_decoder(codecContext->codec_id);
 
@@ -50,7 +52,9 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
         return;
     }
 
-    AVPacket *packet = (AVPacket *) (sizeof(AVPacket));
+    AVPacket *packet = (AVPacket *) av_malloc(sizeof(AVPacket));
+
+
 
     AVFrame *frame = av_frame_alloc();
 
@@ -71,36 +75,46 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
     swr_alloc_set_opts(swrContext, out_ch_layout, out_sample_fmt, out_sample_rate, in_ch_layout,
                        in_sample_fmt, in_sample_rate, 0, NULL
     );
-
+    LOGI("%s", "step 3");
     swr_init(swrContext);
 
     int out_channel_nb = av_get_channel_layout_nb_channels(out_ch_layout);
-
+    if (jclazz == NULL) {
+        LOGI("%s", "jclazz is null");
+    }
     // 使用java的AudioTrack播放音频
-//    jclass player_class = (*env)->GetObjectClass(env, jclazz);
+    //    jclass player_class = (*env)->GetObjectClass(env, jclazz);
     // (II)Landroid/media/AudioTrack;
-    jmethodID create_audio_track = (*env)->GetMethodID(env, jclazz, "createAudioTrack",
-                                                       "(II)Landroid/media/AudioTrack;");
-
+    jmethodID create_audio_track = (*env)->GetStaticMethodID(env, jclazz, "createAudioTrack",
+                                                             "(II)Landroid/media/AudioTrack;");
+    LOGI("%s", "step 4");
+    //    android.media.AudioTrack;
     if (create_audio_track == NULL) {
-        LOGI("%s","create_audio_track is null");
+        LOGI("%s", "create_audio_track is null");
     }
     jobject audio_track = (*env)->CallStaticObjectMethod(env, jclazz, create_audio_track,
                                                          out_sample_rate,
                                                          out_channel_nb);
-
+    if (audio_track == NULL) {
+        LOGI("%s", "audio_track is null");
+    }
+    LOGI("%s", "step 4.0");
     jclass audio_track_class = (*env)->GetObjectClass(env, audio_track);
     jmethodID play = (*env)->GetMethodID(env, audio_track_class, "play", "()V");
-
+    if (play == NULL) {
+        LOGI("%s", "play is null");
+    }
     jmethodID audio_write = (*env)->GetMethodID(env, audio_track_class, "write", "([BII)I");
-
+    LOGI("%s", "step 4.1");
     (*env)->CallVoidMethod(env, audio_track, play);
-
+    LOGI("%s", "step 4.2");
     FILE *fp_pcm = fopen(output_cstr, "wb");
 
-    uint8_t *out_buffer = av_malloc(MAX_AUDIO_FRME_SIZE);
+    uint8_t *out_buffer = (uint8_t *)av_malloc(MAX_AUDIO_FRME_SIZE);
 
     int got_fram = 0, index = 0, ret;
+    LOGI("%s", "step 5");
+    av_read_frame(formatContext, packet);
 
     while (av_read_frame(formatContext, packet) >= 0) {
         if (packet->stream_index == audio_stream_idx) {
@@ -139,50 +153,17 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_palySound
             }
         }
 
-        av_frame_free(&frame);
-        av_free(out_buffer);
-
-        swr_free(out_buffer);
-        avcodec_close(codecContext);
-        avformat_close_input(&formatContext);
-
-        (*env)->ReleaseStringUTFChars(env, input_jstr, input_cstr);
-        (*env)->ReleaseStringUTFChars(env, output_jstr, output_cstr);
+        av_free_packet(packet);
     }
+    LOGI("%s", "step 6");
+    av_frame_free(&frame);
+    av_free(out_buffer);
 
+    swr_free(out_buffer);
+    avcodec_close(codecContext);
+    avformat_close_input(&formatContext);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//    avcodec_decode_audio4()
-//    AVCodecContext
-
-
-
+    (*env)->ReleaseStringUTFChars(env, input_jstr, input_cstr);
+    (*env)->ReleaseStringUTFChars(env, output_jstr, output_cstr);
 
 }

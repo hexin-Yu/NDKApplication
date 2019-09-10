@@ -2,13 +2,11 @@ package com.example.ndkapplication;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.media.AudioTrack;
-import android.os.AsyncTask;
+import android.graphics.PixelFormat;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -17,13 +15,6 @@ import android.widget.Button;
 import android.widget.VideoView;
 
 import java.io.File;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
     String TAG = "MainActivity";
@@ -38,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler handler;
     private Button render_video;
     private Button play_sound;
+    private Button play;
     private VideoView video_view;
 
     String inputPath = "";
@@ -49,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         render_video = findViewById(R.id.render_video);
         play_sound = findViewById(R.id.play_sound);
+        play = findViewById(R.id.play);
         video_view = findViewById(R.id.video_view);
         inputPath = new File(Environment.getExternalStorageDirectory(), "input.mp4").getAbsolutePath();
         outpuPaht = new File(Environment.getExternalStorageDirectory(), "output.mp4").getAbsolutePath();
@@ -62,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 SurfaceHolder holder = video_view.getHolder();
-                holder.getSurface();
+                holder.setFormat(PixelFormat.RGBA_8888);
                 renderVideo(inputPath, holder.getSurface());
             }
         });
@@ -73,24 +66,34 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        play.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                SurfaceHolder holder = video_view.getHolder();
+                holder.setFormat(PixelFormat.RGBA_8888);
+                SuperPlayer superPlayer = new SuperPlayer();
+                superPlayer.play(inputPath, holder.getSurface());
+            }
+        });
+
 
     }
 
     private void renderVideo(String videoPath, Surface surface) {
-        VideoUtils.render(videoPath, surface);
+        SuperPlayer.render(videoPath, surface);
     }
 
     private void decodeVideo() {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                VideoUtils.decode(inputPath, outpuPaht);
+                SuperPlayer.decode(inputPath, outpuPaht);
             }
         });
     }
 
     private void playSound() {
-        VideoUtils.palySound(inputPath, outpuPaht);
+        SuperPlayer.playSound(inputPath, outpuPaht);
     }
 
 

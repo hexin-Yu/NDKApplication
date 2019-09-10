@@ -13,7 +13,7 @@
 #define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR,"jason",FORMAT,##__VA_ARGS__);
 
 
-JNIEXPORT void JNICALL Java_com_example_ndkapplication_VideoUtils_decode
+JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_decode
   (JNIEnv * env, jclass jcls, jstring input_jstr, jstring output_jstr){
 	//需要转码的视频文件(输入的视频文件)
 	const char* input_cstr = (*env)->GetStringUTFChars(env,input_jstr,NULL);

@@ -51,7 +51,7 @@ include $(PREBUILT_SHARED_LIBRARY)
 #myapp
 include $(CLEAR_VARS)
 LOCAL_MODULE := myffmpeg
-LOCAL_SRC_FILES := super_video_player.c c_06_jni.c ffmpeg_player.c super_sound_player.c
+LOCAL_SRC_FILES := super_video_player.c c_06_jni.c ffmpeg_player.c super_sound_player.c super_player.c queue.c
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/include/ffmpeg
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/include/libyuv
 ##-landroid参数 for native windows

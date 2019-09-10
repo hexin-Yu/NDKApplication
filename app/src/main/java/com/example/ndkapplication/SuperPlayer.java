@@ -2,15 +2,19 @@ package com.example.ndkapplication;
 
 import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.media.MediaRecorder;
 import android.view.Surface;
 
-public class VideoUtils {
+public class SuperPlayer {
     public native static void decode(String input, String output);
 
     public native static void render(String input, Surface surface);
 
-    public native static void palySound(String input, String output);
+    public native static void playSound(String input, String output);
+
+    public native void play(String input, Surface surface);
 
     public static AudioTrack createAudioTrack(int sampleRateInHz, int nb_channels) {
         int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
@@ -26,15 +30,28 @@ public class VideoUtils {
 
         int minBufferSize = AudioTrack.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
 
-        AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC
+        AudioTrack audioTrack = new AudioTrack(
+                AudioManager.STREAM_MUSIC
                 , sampleRateInHz
                 , channelConfig
                 , audioFormat
                 , minBufferSize
-                , AudioTrack.MODE_STATIC
+                , AudioTrack.MODE_STREAM
         );
 //        audioTrack.play();
         return audioTrack;
+
+    }
+
+    private void audioPusher() {
+
+        int minBufferSize = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT);
+        AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC
+                , 44100
+                , AudioFormat.CHANNEL_IN_STEREO
+                , AudioFormat.ENCODING_PCM_16BIT
+                , minBufferSize);
+
 
     }
 
