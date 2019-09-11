@@ -1,8 +1,8 @@
 #include <pthread.h>
 #include <android/log.h>
 
-#define LOGI(FORMAT,...) __android_log_print(ANDROID_LOG_INFO,"jason",FORMAT,##__VA_ARGS__);
-#define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR,"jason",FORMAT,##__VA_ARGS__);
+#define LOGI(FORMAT,...) __android_log_print(ANDROID_LOG_INFO,"super",FORMAT,##__VA_ARGS__);
+#define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR,"super",FORMAT,##__VA_ARGS__);
 
 //分配队列元素内存的函数
 typedef void* (*queue_fill_func)();

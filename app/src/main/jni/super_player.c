@@ -9,6 +9,7 @@
 #include <libswresample/swresample.h>
 #include <android/native_window_jni.h>
 #include <malloc.h>
+#include <unistd.h>
 #include "queue.h"
 
 #define LOGI(FORMAT, ...) __android_log_print(ANDROID_LOG_INFO,"super",FORMAT,__VA_ARGS__);
@@ -64,6 +65,8 @@ typedef struct Player {
     int64_t start_time;
 
     int64_t audio_clock;
+
+    int framecount;
 
 } Player;
 
@@ -143,6 +146,10 @@ void decode_video_prepare(JNIEnv *env, Player *player, jobject surface) {
  * 解码视频
  */
 void decode_video(Player *player, AVPacket *packet) {
+    LOGI("decode_video : packet  %#x", packet);
+    AVFormatContext *input_format_ctx = player->input_format_ctx;
+    AVStream *stream = input_format_ctx->streams[player->video_stream_index];
+
     AVFrame *yuv_frame = av_frame_alloc();
     AVFrame *rgb_frame = av_frame_alloc();
     // native绘制
@@ -150,34 +157,44 @@ void decode_video(Player *player, AVPacket *packet) {
     LOGI("%s", "step 5.2");
     // 缓冲区
     ANativeWindow_Buffer outBuffer;
-    int len, get_frame, framecount = 0;
+    int len, get_frame;
 
     AVCodecContext *codecCtx = player->input_codec_ctx[player->video_stream_index];
 
-    LOGE("%s", "1-5步完成");
     avcodec_decode_video2(codecCtx, yuv_frame, &get_frame, packet);
 
     if (get_frame) {// 读取标志
-        LOGI("第%d帧", framecount++)
         // 缓冲区属性
         ANativeWindow_setBuffersGeometry(
                 nativeWindow, codecCtx->width, codecCtx->height, WINDOW_FORMAT_RGBA_8888
         );
         //  lock
         ANativeWindow_lock(nativeWindow, &outBuffer, NULL);
+        LOGI("%s", "ANativeWindow_lock");
         // 填充
+        LOGI("渲染第%d帧", player->framecount++)
         avpicture_fill(
                 (AVPicture *) rgb_frame, outBuffer.bits, AV_PIX_FMT_ARGB, codecCtx->width,
                 codecCtx->height
         );
+        LOGI("%s", "avpicture_fill");
         // YUV ->RGBA_8888
         I420ToARGB(yuv_frame->data[0], yuv_frame->linesize[0],
                    yuv_frame->data[2], yuv_frame->linesize[2],
                    yuv_frame->data[1], yuv_frame->linesize[1],
-                   yuv_frame->data[0], rgb_frame->linesize[0],
+                   rgb_frame->data[0], rgb_frame->linesize[0],
                    codecCtx->width, codecCtx->height);
+        LOGI("%s", "I420ToARGB");
+        int64_t pts = av_frame_get_best_effort_timestamp(yuv_frame);
+
+        int64_t time = av_rescale_q(pts, stream->time_base, AV_TIME_BASE_Q);
+        LOGI("%s", "pts");
+//        player_wait_for_frame();
+
+
         // unlcok
         ANativeWindow_unlockAndPost(nativeWindow);
+        LOGI("%s", "ANativeWindow_unlockAndPost");
     }
     av_frame_free(&yuv_frame);
     av_frame_free(&rgb_frame);
@@ -226,6 +243,7 @@ void decode_audio_prepare(Player *player) {
  * 解码音频
  */
 void decode_audio(Player *player, AVPacket *packet) {
+    LOGI("%s", "decode_audio");
     AVFormatContext *input_format_ctx = player->input_format_ctx;
     AVStream *stream = input_format_ctx->streams[player->video_stream_index];
     AVCodecContext *codec_ctx = player->input_codec_ctx[player->audio_stream_index];
@@ -244,44 +262,48 @@ void decode_audio(Player *player, AVPacket *packet) {
                                                          frame->nb_samples, player->out_sample_fmt,
                                                          1);
         // Presentation timestamp in AVStream->time_base units
-        int64_t pts = packet->pts;
-        if (pts != AV_NOPTS_VALUE) {
-            player->audio_clock = av_rescale_q(pts, stream->time_base,
-                                               AV_TIME_BASE_Q);
-            // 计算延迟
-
-        }
-
+//        int64_t pts = packet->pts;
+//        if (pts != AV_NOPTS_VALUE) {
+//            player->audio_clock = av_rescale_q(pts, stream->time_base,
+//                                               AV_TIME_BASE_Q);
+//            // 计算延迟
+//
+//        }
+        LOGI("%s", "decode_audio stp 1");
         // 关联处理的线程
         JavaVM *javaVM = player->javaVM;
         JNIEnv *env;
-        (*javaVM)->AttachCurrentThread(javaVM, *env, NULL);
-
+        (*javaVM)->AttachCurrentThread(javaVM, &env, NULL);
+        LOGI("%s", "decode_audio stp 1.1");
         jbyteArray audio_sample_array = (*env)->NewByteArray(env, out_buffer_size);
-
+        LOGI("%s", "decode_audio stp 1.2");
         jbyte *sample_byte = (*env)->GetByteArrayElements(env, audio_sample_array, NULL);
-
+        LOGI("%s", "decode_audio stp 1.3");
         memcpy(sample_byte, out_buffer, out_buffer_size);
-
+        LOGI("%s", "decode_audio stp 1.4");
         (*env)->ReleaseByteArrayElements(env, audio_sample_array, sample_byte, 0);
+        LOGI("%s", "decode_audio stp 2");
 
         (*env)->CallIntMethod(env, player->audio_track, player->audio_track_write_mid,
                               audio_sample_array, 0,
                               out_buffer_size);
+        LOGI("%s", "decode_audio stp 4");
         (*env)->DeleteLocalRef(env, audio_sample_array);
 
         (*javaVM)->DetachCurrentThread(javaVM);
+        usleep(1000 * 16);
     }
-    av_frame_free(frame);
+    av_frame_free(&frame);
 }
 
-void jni_audio_prepare(JNIEnv *env, jobject jthiz, Player *player) {
+void jni_audio_prepare(JNIEnv *env, jobject jobj, Player *player) {
+    LOGI("%s", "jni_audio_prepare stp 0");
     // 使用java的AudioTrack播放音频
-    jclass jclazz = (*env)->GetObjectClass(env, jthiz);
+    jclass jclazz = (*env)->GetObjectClass(env, jobj);
     // (II)Landroid/media/AudioTrack;
     jmethodID create_audio_track = (*env)->GetStaticMethodID(env, jclazz, "createAudioTrack",
                                                              "(II)Landroid/media/AudioTrack;");
-    LOGI("%s", "step 4");
+    LOGI("%s", "jni_audio_prepare step 4");
     //    android.media.AudioTrack;
     if (create_audio_track == NULL) {
         LOGI("%s", "create_audio_track is null");
@@ -292,17 +314,20 @@ void jni_audio_prepare(JNIEnv *env, jobject jthiz, Player *player) {
     if (audio_track == NULL) {
         LOGI("%s", "audio_track is null");
     }
-    LOGI("%s", "step 4.0");
+    LOGI("%s", "jni_audio_prepare step 4.0");
     jclass audio_track_class = (*env)->GetObjectClass(env, audio_track);
     jmethodID play = (*env)->GetMethodID(env, audio_track_class, "play", "()V");
     if (play == NULL) {
         LOGI("%s", "play is null");
     }
-    jmethodID audio_write = (*env)->GetMethodID(env, audio_track_class, "write", "([BII)I");
-    LOGI("%s", "step 4.1");
+    LOGI("%s", "jni_audio_prepare step 4.1");
     (*env)->CallVoidMethod(env, audio_track, play);
-    LOGI("%s", "step 4.2");
-    player->audio_track = audio_track;
+
+    jmethodID audio_write = (*env)->GetMethodID(env, audio_track_class, "write", "([BII)I");
+    LOGI("%s", "jni_audio_prepare step 4.2");
+
+    // 使用全局变量
+    player->audio_track = (*env)->NewGlobalRef(env,audio_track);
     player->audio_track_write_mid = audio_write;
 
 }
@@ -315,18 +340,19 @@ void *decode_data(void *arg) {
     Queue *queue = (Queue *) player->packets[stream_index];
 
     AVFormatContext *formatContext = player->input_format_ctx;
-    int video_frame_count = 0, audio_frame_count = 0;
+    int video_frame_count = 0, audio_frame_count = 0, frame_count = 0;
 
     for (;;) {
+        LOGI("decode_data frame_count :%d", ++frame_count);
         pthread_mutex_lock(&player->mutex);
         AVPacket *packet = (AVPacket *) queue_pop(queue, &player->mutex, &player->cond);
         pthread_mutex_unlock(&player->mutex);
         if (stream_index == player->video_stream_index) {
             decode_video(player, packet);
-            LOGI("video_frame_count:%d", video_frame_count++);
+            LOGI("video_frame_count:%d", ++video_frame_count);
         } else {
             decode_audio(player, packet);
-            LOGI("audio_frame_count:%d", audio_frame_count++);
+            LOGI("audio_frame_count:%d", ++audio_frame_count);
         }
     }
 
@@ -362,6 +388,8 @@ void *player_read_from_stream(Player *player) {
         if (ret < 0) {
             break;
         }
+//        LOGI("pkt->stream_index %s",pkt->stream_index);
+
         Queue *queue = player->packets[pkt->stream_index];
 
         pthread_mutex_lock(&player->mutex);
@@ -370,6 +398,7 @@ void *player_read_from_stream(Player *player) {
         pthread_mutex_unlock(&player->mutex);
         LOGI("queue:%#x, packet:%#x", queue, packet);
     }
+
 }
 
 
@@ -382,7 +411,7 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_play
 
     Player *player = malloc(sizeof(Player));
     (*env)->GetJavaVM(env, &(player->javaVM));
-
+    player->framecount = 0;
     LOGI("%s", "step 0");
     init_input_format_ctx(player, input_cstr);
     int video_stream_index = player->video_stream_index;
@@ -413,49 +442,15 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_play
     pthread_create(&(player->decode_threads[video_stream_index]), NULL, decode_data,
                    (void *) decoder_data1);
 
-    DecoderData data2 = {player, video_stream_index}, *decoder_data2 = &data2;
+    DecoderData data2 = {player, audio_stream_index}, *decoder_data2 = &data2;
     pthread_create(&(player->decode_threads[audio_stream_index]), NULL, decode_data,
                    (void *) decoder_data2);
 
     pthread_join(player->thread_read_from_stream, NULL);
     pthread_join(player->decode_threads[video_stream_index], NULL);
-    pthread_join(player->decode_threads[video_stream_index], NULL);
+    pthread_join(player->decode_threads[audio_stream_index], NULL);
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -61,7 +61,7 @@ void *queue_push(Queue *queue, pthread_mutex_t *mutex, pthread_cond_t *cond) {
         }
         pthread_cond_wait(cond, mutex);
     }
-
+    LOGI("queue_push queue:%#x, %d",queue,current);
     queue->next_to_write = next_to_write;
     pthread_cond_broadcast(cond);
     return queue->tab[current];
@@ -78,7 +78,7 @@ void *queue_pop(Queue *queue, pthread_mutex_t *mutex, pthread_cond_t *cond) {
         }
         pthread_cond_wait(cond, mutex);
     }
-
+    LOGI("queue_pop queue:%#x, %d",queue,current);
     queue->next_to_read = queue_get_next(queue, current);
     pthread_cond_broadcast(cond);
     return queue->tab[current];

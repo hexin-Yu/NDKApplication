@@ -9,8 +9,8 @@
 //像素处理
 #include "include/ffmpeg/libswscale/swscale.h"
 
-#define LOGI(FORMAT,...) __android_log_print(ANDROID_LOG_INFO,"jason",FORMAT,##__VA_ARGS__);
-#define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR,"jason",FORMAT,##__VA_ARGS__);
+#define LOGI(FORMAT,...) __android_log_print(ANDROID_LOG_INFO,"super",FORMAT,##__VA_ARGS__);
+#define LOGE(FORMAT,...) __android_log_print(ANDROID_LOG_ERROR,"super",FORMAT,##__VA_ARGS__);
 
 
 JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_decode
