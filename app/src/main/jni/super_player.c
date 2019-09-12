@@ -10,6 +10,7 @@
 #include <android/native_window_jni.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <libavutil/time.h>
 #include "queue.h"
 
 #define LOGI(FORMAT, ...) __android_log_print(ANDROID_LOG_INFO,"super",FORMAT,__VA_ARGS__);
@@ -21,6 +22,10 @@
 #define MAX_AUDIO_FRME_SIZE 48000*4
 
 #define PACKET_QUEUE_SIZE 50
+
+#define MIN_SLEEP_TIME_US  1000ll
+
+#define AUDIO_TIME_ADJUST_US  -200000ll
 
 typedef struct Player {
     JavaVM *javaVM;
@@ -138,6 +143,43 @@ void init_codec_context(Player *player, int stream_idx) {
 
 }
 
+
+int64_t player_get_current_video_time(Player *player) {
+    int64_t current_time = av_gettime();
+    return current_time - player->start_time;
+}
+
+void player_wait_for_frame(Player *player, int64_t stream_time, int stream_no) {
+    pthread_mutex_lock(&player->mutex);
+    for (;;) {
+        int64_t current_video_time = player_get_current_video_time(player);
+        int64_t sleep_time = stream_time - current_video_time;
+        if (sleep_time < -300000ll) {
+            // 300mslate
+            int64_t new_value = player->start_time - sleep_time;
+//            LOGI("player_wait_for_frame[%d] correcting %f to %f because late",
+//                 stream_no, (av_gettime() - player->start_time) / 1000000.0,
+//                 (av_gettime() - new_value) / 1000000.0);
+            player->start_time = new_value;
+            pthread_cond_broadcast(&player->cond);
+        }
+        if (sleep_time <= MIN_SLEEP_TIME_US) {
+            break;
+        }
+        if (sleep_time > 500000ll) {
+            // if sleep time is bigger then 500ms just sleep this 500ms
+            // and check everything again
+            sleep_time = 500000ll;
+        }
+        //等待指定时长
+        int timeout_ret = pthread_cond_timeout_np(&player->cond, &player->mutex,
+                                                  sleep_time / 1000ll);
+    }
+    pthread_mutex_unlock(&player->mutex);
+
+}
+
+
 void decode_video_prepare(JNIEnv *env, Player *player, jobject surface) {
     player->nativeWindow = ANativeWindow_fromSurface(env, surface);
 }
@@ -189,8 +231,7 @@ void decode_video(Player *player, AVPacket *packet) {
 
         int64_t time = av_rescale_q(pts, stream->time_base, AV_TIME_BASE_Q);
         LOGI("%s", "pts");
-//        player_wait_for_frame();
-
+//        player_wait_for_frame(player, time, player->video_stream_index);
 
         // unlcok
         ANativeWindow_unlockAndPost(nativeWindow);
@@ -262,13 +303,14 @@ void decode_audio(Player *player, AVPacket *packet) {
                                                          frame->nb_samples, player->out_sample_fmt,
                                                          1);
         // Presentation timestamp in AVStream->time_base units
-//        int64_t pts = packet->pts;
-//        if (pts != AV_NOPTS_VALUE) {
-//            player->audio_clock = av_rescale_q(pts, stream->time_base,
-//                                               AV_TIME_BASE_Q);
-//            // 计算延迟
-//
-//        }
+        int64_t pts = packet->pts;
+        if (pts != AV_NOPTS_VALUE) {
+            player->audio_clock = av_rescale_q(pts, stream->time_base,
+                                               AV_TIME_BASE_Q);
+            // 计算延迟
+//            player_wait_for_frame(player, player->audio_clock + AUDIO_TIME_ADJUST_US,
+//                                  player->audio_stream_index);
+        }
         LOGI("%s", "decode_audio stp 1");
         // 关联处理的线程
         JavaVM *javaVM = player->javaVM;
@@ -326,8 +368,8 @@ void jni_audio_prepare(JNIEnv *env, jobject jobj, Player *player) {
     jmethodID audio_write = (*env)->GetMethodID(env, audio_track_class, "write", "([BII)I");
     LOGI("%s", "jni_audio_prepare step 4.2");
 
-    // 使用全局变量
-    player->audio_track = (*env)->NewGlobalRef(env,audio_track);
+    // FIXME 使用全局变量
+    player->audio_track = (*env)->NewGlobalRef(env, audio_track);
     player->audio_track_write_mid = audio_write;
 
 }
@@ -378,13 +420,13 @@ void *packet_free_func(AVPacket *packet) {
     return 0;
 }
 
+
 void *player_read_from_stream(Player *player) {
     int index = 0;
     int ret;
     AVPacket packet, *pkt = &packet;
     for (;;) {
         ret = av_read_frame(player->input_format_ctx, pkt);
-
         if (ret < 0) {
             break;
         }
@@ -400,7 +442,6 @@ void *player_read_from_stream(Player *player) {
     }
 
 }
-
 
 JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_play
         (JNIEnv *env, jobject jobj, jstring input_jstr, jobject surface) {
@@ -451,6 +492,7 @@ JNIEXPORT void JNICALL Java_com_example_ndkapplication_SuperPlayer_play
     pthread_join(player->decode_threads[audio_stream_index], NULL);
 
 }
+
 
 
 
